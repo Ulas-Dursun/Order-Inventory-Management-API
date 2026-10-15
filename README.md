@@ -4,6 +4,7 @@
 [![Spring Boot 3.3](https://img.shields.io/badge/Spring%20Boot-3.3.0-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
+[![CI](https://github.com/Ulas-Dursun/Order-Inventory-Management-API/actions/workflows/ci.yml/badge.svg)](https://github.com/Ulas-Dursun/Order-Inventory-Management-API/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An order and inventory management REST API built with Java 21, Spring Boot 3.3, and PostgreSQL. Focused on concurrency handling, transactional integrity (pessimistic locking to prevent overselling), deadlock avoidance, and order state transitions.
