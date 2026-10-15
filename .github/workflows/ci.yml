@@ -11,6 +11,21 @@ jobs:
     name: Build & Test (Java 21)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cartifydb
+          POSTGRES_USER: cartifyuser
+          POSTGRES_PASSWORD: cartifypass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,8 +40,12 @@ jobs:
       - name: Make Maven Wrapper Executable
         run: chmod +x mvnw
 
-      - name: Run Unit & Concurrency Tests
-        run: ./mvnw clean test -Dtest="!OrderIntegrationTest" -B
+      - name: Run Tests
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/cartifydb
+          SPRING_DATASOURCE_USERNAME: cartifyuser
+          SPRING_DATASOURCE_PASSWORD: cartifypass
+        run: ./mvnw clean test -B
 
       - name: Publish Test Report (Surefire)
         if: always()
