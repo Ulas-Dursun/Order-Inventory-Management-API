@@ -39,6 +39,7 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @org.hibernate.annotations.BatchSize(size = 25)
     private List<OrderItem> items = new ArrayList<>();
 
     @CreationTimestamp

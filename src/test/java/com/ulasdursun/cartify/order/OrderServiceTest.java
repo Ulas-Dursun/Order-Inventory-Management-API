@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -154,6 +155,57 @@ class OrderServiceTest {
         );
 
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED);
+    }
+
+    @Test
+    void updateOrderStatus_toCancelled_restoresStockUsingPessimisticLock() {
+        Order order = buildOrder(OrderStatus.PENDING, owner);
+        OrderItem item = OrderItem.builder()
+                .id(UUID.randomUUID())
+                .order(order)
+                .product(product)
+                .quantity(3)
+                .unitPrice(UNIT_PRICE)
+                .build();
+        order.setItems(new ArrayList<>(List.of(item)));
+
+        when(orderRepository.findDetailedById(order.getId())).thenReturn(Optional.of(order));
+        when(productService.findActiveOrThrowForUpdate(productId)).thenReturn(product);
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderResponse response = orderService.updateOrderStatus(
+                order.getId(), new UpdateOrderStatusRequest(OrderStatus.CANCELLED)
+        );
+
+        assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(product.getStock()).isEqualTo(INITIAL_STOCK + 3);
+        verify(productService).findActiveOrThrowForUpdate(productId);
+    }
+
+    @Test
+    void createOrder_withMultipleItems_locksProductsInAscendingIdOrderToPreventDeadlock() {
+        UUID idA = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID idB = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        Product productA = Product.builder().id(idA).name("A").price(BigDecimal.TEN).stock(5).active(true).build();
+        Product productB = Product.builder().id(idB).name("B").price(BigDecimal.TEN).stock(5).active(true).build();
+
+        // Client sends idB first, then idA
+        CreateOrderRequest request = new CreateOrderRequest(List.of(
+                new OrderItemRequest(idB, 1),
+                new OrderItemRequest(idA, 1)
+        ));
+
+        when(productService.findActiveOrThrowForUpdate(idA)).thenReturn(productA);
+        when(productService.findActiveOrThrowForUpdate(idB)).thenReturn(productB);
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderService.createOrder(request, owner);
+
+        // Verify locks are acquired strictly in sorted order (idA then idB)
+        org.mockito.InOrder inOrder = inOrder(productService);
+        inOrder.verify(productService).findActiveOrThrowForUpdate(idA);
+        inOrder.verify(productService).findActiveOrThrowForUpdate(idB);
     }
 
     @Test

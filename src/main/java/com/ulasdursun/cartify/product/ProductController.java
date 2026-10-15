@@ -8,6 +8,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,10 +28,19 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @Operation(summary = "Get all active products")
+    @Operation(summary = "Get all active products with pagination")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<ProductResponse> getAllProducts() {
+    public Page<ProductResponse> getAllProducts(
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return productService.getAllActiveProducts(pageable);
+    }
+
+    @Operation(summary = "Get all active products without pagination")
+    @GetMapping("/all")
+    @ResponseStatus(HttpStatus.OK)
+    public List<ProductResponse> getAllProductsList() {
         return productService.getAllActiveProducts();
     }
 

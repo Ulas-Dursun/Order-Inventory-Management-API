@@ -125,15 +125,16 @@
 
 <script>
     const API='';
-    function getToken(){return localStorage.getItem('c_token')}
-    function getRole(){return localStorage.getItem('c_role')}
-    function getEmail(){return localStorage.getItem('c_email')}
+    function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+    function getToken(){return localStorage.getItem('cartify_token')||localStorage.getItem('c_token')}
+    function getRole(){return localStorage.getItem('cartify_role')||localStorage.getItem('c_role')}
+    function getEmail(){return localStorage.getItem('cartify_email')||localStorage.getItem('c_email')}
     function isLoggedIn(){return!!getToken()}
     function isAdmin(){return getRole()==='ADMIN'}
     function authHeaders(){return{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}}
     async function apiFetch(p,o={}){const r=await fetch(API+p,o);if(r.status===204)return null;const d=await r.json().catch(()=>null);if(!r.ok)throw new Error(d?.message||'Request failed');return d}
     function toast(msg,type='ok'){const c=document.getElementById('toasts');const t=document.createElement('div');t.className=`t t-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),3500)}
-    function logout(){['c_token','c_role','c_email'].forEach(k=>localStorage.removeItem(k));window.location.href='/'}
+    function logout(){['c_token','c_role','c_email','cartify_token','cartify_role','cartify_email'].forEach(k=>localStorage.removeItem(k));window.location.href='/'}
     function updateNav(){
         const u=document.getElementById('nav-user');
         const lo=document.getElementById('nav-logout');
@@ -146,7 +147,8 @@
     async function loadProducts(){
         const c=document.getElementById('products-container');
         try{
-            const ps=await apiFetch('/api/products',{headers:authHeaders()});
+            const res=await apiFetch('/api/products',{headers:authHeaders()});
+            const ps=Array.isArray(res)?res:(res?.content||[]);
             document.getElementById('p-count').textContent=ps.length+' items';
             if(!ps.length){c.innerHTML='<div class="empty"><div class="empty-ico">📦</div><p>No products yet.</p></div>';return}
             c.innerHTML='<div class="grid">'+ps.map(card).join('')+'</div>';
@@ -157,8 +159,8 @@
         const sb=p.stock===0?'<span class="badge b-out">Out of stock</span>':p.stock<5?`<span class="badge b-low">⚠ ${p.stock} left</span>`:`<span class="badge b-ok">✓ ${p.stock} in stock</span>`;
         const admin=isAdmin()?`<div class="admin-actions"><button class="btn btn-yellow btn-sm" onclick="editStock('${p.id}',${p.stock})">Edit Stock</button><button class="btn btn-red btn-sm" onclick="delProduct('${p.id}')">Delete</button></div>`:'';
         return`<div class="pcard" id="pc-${p.id}">
-    <div class="pcard-top"><div class="pcard-name">${p.name}</div></div>
-    <div class="pcard-desc">${p.description||'No description provided.'}</div>
+    <div class="pcard-top"><div class="pcard-name">${esc(p.name)}</div></div>
+    <div class="pcard-desc">${esc(p.description)||'No description provided.'}</div>
     <div class="pcard-foot"><span class="price">$${parseFloat(p.price).toFixed(2)}</span>${sb}</div>
     ${admin}</div>`;
     }

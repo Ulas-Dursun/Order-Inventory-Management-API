@@ -11,12 +11,15 @@ import com.ulasdursun.cartify.product.Product;
 import com.ulasdursun.cartify.product.ProductService;
 import com.ulasdursun.cartify.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,7 +35,12 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalPrice = BigDecimal.ZERO;
 
-        for (OrderItemRequest itemRequest : request.items()) {
+        // Sort items by product ID to enforce deterministic lock ordering and prevent deadlocks under concurrent requests
+        List<OrderItemRequest> sortedItemRequests = request.items().stream()
+                .sorted(Comparator.comparing(OrderItemRequest::productId))
+                .toList();
+
+        for (OrderItemRequest itemRequest : sortedItemRequests) {
             Product product = productService.findActiveOrThrowForUpdate(itemRequest.productId());
 
             if (product.getStock() < itemRequest.quantity()) {
@@ -79,8 +87,28 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public Page<OrderResponse> getOrdersForUser(User authenticatedUser, Pageable pageable) {
+        return orderRepository.findAllByUserId(authenticatedUser.getId(), pageable)
+                .map(OrderResponse::from);
+    }
+
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersForUser(User authenticatedUser) {
         return orderRepository.findAllDetailedByUserId(authenticatedUser.getId())
+                .stream()
+                .map(OrderResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> getAllOrders(Pageable pageable) {
+        return orderRepository.findAllOrders(pageable)
+                .map(OrderResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAllOrders() {
+        return orderRepository.findAllDetailed()
                 .stream()
                 .map(OrderResponse::from)
                 .toList();
@@ -96,10 +124,15 @@ public class OrderService {
             );
         }
 
-        // Restore stock if order is being cancelled
+        // Restore stock with pessimistic write lock if order is being cancelled
         if (request.status() == OrderStatus.CANCELLED) {
-            for (OrderItem item : order.getItems()) {
-                Product product = productService.findActiveOrThrow(item.getProduct().getId());
+            // Sort items by product ID to avoid deadlock during concurrent cancellations
+            List<OrderItem> sortedItems = order.getItems().stream()
+                    .sorted(Comparator.comparing(item -> item.getProduct().getId()))
+                    .toList();
+
+            for (OrderItem item : sortedItems) {
+                Product product = productService.findActiveOrThrowForUpdate(item.getProduct().getId());
                 product.setStock(product.getStock() + item.getQuantity());
             }
         }
@@ -123,12 +156,5 @@ public class OrderService {
         if (!isOwner && !isAdmin) {
             throw new AccessDeniedException("You do not have access to this order");
         }
-    }
-    @Transactional(readOnly = true)
-    public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllDetailed()
-                .stream()
-                .map(OrderResponse::from)
-                .toList();
     }
 }

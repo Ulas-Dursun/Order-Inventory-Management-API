@@ -1,8 +1,8 @@
 const API = '';
 
-function getToken()    { return localStorage.getItem('cartify_token'); }
-function getRole()     { return localStorage.getItem('cartify_role'); }
-function getEmail()    { return localStorage.getItem('cartify_email'); }
+function getToken()    { return localStorage.getItem('cartify_token') || localStorage.getItem('c_token'); }
+function getRole()     { return localStorage.getItem('cartify_role') || localStorage.getItem('c_role'); }
+function getEmail()    { return localStorage.getItem('cartify_email') || localStorage.getItem('c_email'); }
 function isLoggedIn()  { return !!getToken(); }
 function isAdmin()     { return getRole() === 'ADMIN'; }
 
@@ -10,12 +10,14 @@ function saveAuth(data) {
     localStorage.setItem('cartify_token', data.token);
     localStorage.setItem('cartify_role',  data.role);
     localStorage.setItem('cartify_email', data.email);
+    localStorage.setItem('c_token', data.token);
+    localStorage.setItem('c_role',  data.role);
+    localStorage.setItem('c_email', data.email);
 }
 
 function clearAuth() {
-    localStorage.removeItem('cartify_token');
-    localStorage.removeItem('cartify_role');
-    localStorage.removeItem('cartify_email');
+    ['cartify_token', 'cartify_role', 'cartify_email', 'c_token', 'c_role', 'c_email']
+        .forEach(k => localStorage.removeItem(k));
 }
 
 function authHeaders() {

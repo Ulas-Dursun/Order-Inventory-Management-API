@@ -5,6 +5,8 @@ import com.ulasdursun.cartify.product.dto.ProductRequest;
 import com.ulasdursun.cartify.product.dto.ProductResponse;
 import com.ulasdursun.cartify.product.dto.StockUpdateRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,11 @@ import java.util.UUID;
 public class ProductService {
 
     private final ProductRepository productRepository;
+
+    public Page<ProductResponse> getAllActiveProducts(Pageable pageable) {
+        return productRepository.findAllByActiveTrue(pageable)
+                .map(ProductResponse::from);
+    }
 
     public List<ProductResponse> getAllActiveProducts() {
         return productRepository.findAllByActiveTrue()
