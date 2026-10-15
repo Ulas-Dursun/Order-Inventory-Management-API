@@ -143,7 +143,7 @@ The concurrency safety is verified by a multi-threaded stress test (`OrderConcur
 ### 1. Run with Docker Compose (Recommended)
 ```bash
 # Clone the repository
-git clone https://github.com/Ulas-Dursun/Cartify.git
+git clone https://github.com/Ulas-Dursun/Order-Inventory-Management-API.git
 cd cartify
 
 # Launch PostgreSQL and Application
