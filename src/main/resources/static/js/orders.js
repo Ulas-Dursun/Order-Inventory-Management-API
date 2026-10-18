@@ -1,6 +1,10 @@
 let allProducts = [];
 let quantities  = {};
 
+function esc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!requireAuth()) return;
     updateNav();
@@ -10,7 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadOrders() {
     const container = document.getElementById('orders-container');
     try {
-        const orders = await apiFetch('/api/orders', { headers: authHeaders() });
+        const endpoint = isAdmin() ? '/api/orders/all?size=50' : '/api/orders?size=50';
+        const res = await apiFetch(endpoint, { headers: authHeaders() });
+        const orders = res.content || res;
         if (!orders.length) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -21,7 +27,7 @@ async function loadOrders() {
         }
         container.innerHTML = orders.map(orderCard).join('');
     } catch(e) {
-        container.innerHTML = `<div class="empty-state"><p>${e.message}</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>${esc(e.message)}</p></div>`;
     }
 }
 
@@ -33,13 +39,13 @@ function statusBadge(status) {
         DELIVERED: 'badge-delivered',
         CANCELLED: 'badge-cancelled'
     };
-    return `<span class="badge ${map[status] || ''}">${status}</span>`;
+    return `<span class="badge ${map[status] || ''}">${esc(status)}</span>`;
 }
 
 function orderCard(o) {
     const items = o.items.map(i => `
         <div class="order-item">
-            <span>${i.productName} × ${i.quantity}</span>
+            <span>${esc(i.productName)} × ${i.quantity}</span>
             <span>$${parseFloat(i.subtotal).toFixed(2)}</span>
         </div>`).join('');
 
@@ -51,7 +57,7 @@ function orderCard(o) {
         <div class="order-card">
             <div class="order-header">
                 <div>
-                    <div class="order-id">#${o.id.slice(0,8).toUpperCase()}</div>
+                    <div class="order-id">#${esc(o.id.slice(0,8).toUpperCase())}</div>
                     <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px">${date}</div>
                 </div>
                 <div style="display:flex;align-items:center;gap:0.75rem">
@@ -66,7 +72,8 @@ function orderCard(o) {
 async function openOrderModal() {
     quantities = {};
     try {
-        allProducts = await apiFetch('/api/products', { headers: authHeaders() });
+        const res = await apiFetch('/api/products?size=100', { headers: authHeaders() });
+        allProducts = res.content || res;
         const list = document.getElementById('product-select-list');
 
         if (!allProducts.length) {
@@ -75,13 +82,13 @@ async function openOrderModal() {
             list.innerHTML = allProducts.map(p => `
                 <div class="product-select-item">
                     <div>
-                        <div style="font-size:0.88rem;font-weight:600">${p.name}</div>
+                        <div style="font-size:0.88rem;font-weight:600">${esc(p.name)}</div>
                         <div style="font-size:0.78rem;color:var(--text-muted)">$${parseFloat(p.price).toFixed(2)} · Stock: ${p.stock}</div>
                     </div>
                     <div class="qty-control">
-                        <button class="qty-btn" onclick="changeQty('${p.id}', -1, ${p.stock}, ${p.price})">−</button>
-                        <span class="qty-display" id="qty-${p.id}">0</span>
-                        <button class="qty-btn" onclick="changeQty('${p.id}', 1, ${p.stock}, ${p.price})">+</button>
+                        <button class="qty-btn" onclick="changeQty('${esc(p.id)}', -1, ${p.stock}, ${p.price})">−</button>
+                        <span class="qty-display" id="qty-${esc(p.id)}">0</span>
+                        <button class="qty-btn" onclick="changeQty('${esc(p.id)}', 1, ${p.stock}, ${p.price})">+</button>
                     </div>
                 </div>`).join('');
         }

@@ -21,7 +21,10 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,32 +38,40 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalPrice = BigDecimal.ZERO;
 
-        // Sort items by product ID to enforce deterministic lock ordering and prevent deadlocks under concurrent requests
-        List<OrderItemRequest> sortedItemRequests = request.items().stream()
-                .sorted(Comparator.comparing(OrderItemRequest::productId))
-                .toList();
+        // Aggregate duplicate product IDs and sort keys in ascending UUID order
+        // to enforce deterministic lock acquisition and prevent deadlocks
+        Map<UUID, Integer> sortedProductQuantities = request.items().stream()
+                .collect(Collectors.toMap(
+                        OrderItemRequest::productId,
+                        OrderItemRequest::quantity,
+                        Integer::sum,
+                        TreeMap::new
+                ));
 
-        for (OrderItemRequest itemRequest : sortedItemRequests) {
-            Product product = productService.findActiveOrThrowForUpdate(itemRequest.productId());
+        for (Map.Entry<UUID, Integer> entry : sortedProductQuantities.entrySet()) {
+            UUID productId = entry.getKey();
+            int requestedQuantity = entry.getValue();
 
-            if (product.getStock() < itemRequest.quantity()) {
+            Product product = productService.findActiveOrThrowForUpdate(productId);
+
+            if (product.getStock() < requestedQuantity) {
                 throw new InsufficientStockException(
                         "Insufficient stock for product '" + product.getName() + "'. " +
-                                "Requested: " + itemRequest.quantity() + ", available: " + product.getStock()
+                                "Requested: " + requestedQuantity + ", available: " + product.getStock()
                 );
             }
 
-            product.setStock(product.getStock() - itemRequest.quantity());
+            product.setStock(product.getStock() - requestedQuantity);
 
             OrderItem item = OrderItem.builder()
                     .product(product)
-                    .quantity(itemRequest.quantity())
+                    .quantity(requestedQuantity)
                     .unitPrice(product.getPrice())
                     .build();
 
             orderItems.add(item);
             totalPrice = totalPrice.add(
-                    product.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity()))
+                    product.getPrice().multiply(BigDecimal.valueOf(requestedQuantity))
             );
         }
 
@@ -125,14 +136,14 @@ public class OrderService {
         }
 
         // Restore stock with pessimistic write lock if order is being cancelled
+        // Uses findOrThrowForUpdate so orders containing soft-deleted products can still be cancelled
         if (request.status() == OrderStatus.CANCELLED) {
-            // Sort items by product ID to avoid deadlock during concurrent cancellations
             List<OrderItem> sortedItems = order.getItems().stream()
                     .sorted(Comparator.comparing(item -> item.getProduct().getId()))
                     .toList();
 
             for (OrderItem item : sortedItems) {
-                Product product = productService.findActiveOrThrowForUpdate(item.getProduct().getId());
+                Product product = productService.findOrThrowForUpdate(item.getProduct().getId());
                 product.setStock(product.getStock() + item.getQuantity());
             }
         }

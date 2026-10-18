@@ -19,11 +19,13 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
+    @Transactional(readOnly = true)
     public Page<ProductResponse> getAllActiveProducts(Pageable pageable) {
         return productRepository.findAllByActiveTrue(pageable)
                 .map(ProductResponse::from);
     }
 
+    @Transactional(readOnly = true)
     public List<ProductResponse> getAllActiveProducts() {
         return productRepository.findAllByActiveTrue()
                 .stream()
@@ -31,6 +33,7 @@ public class ProductService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ProductResponse getActiveProductById(UUID id) {
         return ProductResponse.from(findActiveOrThrow(id));
     }
@@ -70,6 +73,7 @@ public class ProductService {
         productRepository.save(product);
     }
 
+    @Transactional(readOnly = true)
     public Product findActiveOrThrow(UUID id) {
         return productRepository.findByIdAndActiveTrue(id)
                 .orElseThrow(() -> new ProductNotFoundException(
@@ -77,8 +81,17 @@ public class ProductService {
                 ));
     }
 
+    @Transactional
     public Product findActiveOrThrowForUpdate(UUID id) {
         return productRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ProductNotFoundException(
+                        "Product not found with id: " + id
+                ));
+    }
+
+    @Transactional
+    public Product findOrThrowForUpdate(UUID id) {
+        return productRepository.findByIdForUpdateIncludeInactive(id)
                 .orElseThrow(() -> new ProductNotFoundException(
                         "Product not found with id: " + id
                 ));

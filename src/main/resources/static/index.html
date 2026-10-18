@@ -162,7 +162,7 @@
         <p>A production-grade REST API with JWT authentication, role-based access control, PostgreSQL persistence, and full Docker support.</p>
         <div class="hero-cta">
             <button class="btn btn-primary btn-hero" onclick="handleCTA()">Get Started →</button>
-            <a class="btn btn-ghost btn-hero" href="https://github.com/ulasdursun/cartify" target="_blank">View on GitHub</a>
+            <a class="btn btn-ghost btn-hero" href="https://github.com/Ulas-Dursun/Order-Inventory-Management-API" target="_blank">View on GitHub</a>
         </div>
         <div class="stats">
             <div class="stat"><div class="stat-num">JWT</div><div class="stat-label">Auth</div></div>
@@ -219,7 +219,7 @@
         <span class="tag">Spring Boot 3.3</span>
         <span class="tag">Spring Security</span>
         <span class="tag">JWT / JJWT</span>
-        <span class="tag">PostgreSQL 17</span>
+        <span class="tag">PostgreSQL 16</span>
         <span class="tag">JPA / Hibernate</span>
         <span class="tag">Bean Validation</span>
         <span class="tag">JUnit 5</span>
@@ -233,7 +233,7 @@
 </section>
 
 <footer>
-    Built by <a href="https://github.com/ulasdursun">Ulaş Dursun</a> · Cartify API · 2025
+    Built by <a href="https://github.com/Ulas-Dursun">Ulaş Dursun</a> · Cartify API · 2026
 </footer>
 
 <!-- AUTH MODAL -->
@@ -268,13 +268,16 @@
 
 <script>
     const API='';
-    function getToken(){return localStorage.getItem('c_token')}
-    function getRole(){return localStorage.getItem('c_role')}
-    function getEmail(){return localStorage.getItem('c_email')}
+    function getToken(){return localStorage.getItem('c_token')||localStorage.getItem('cartify_token')}
+    function getRole(){return localStorage.getItem('c_role')||localStorage.getItem('cartify_role')}
+    function getEmail(){return localStorage.getItem('c_email')||localStorage.getItem('cartify_email')}
     function isLoggedIn(){return!!getToken()}
     function isAdmin(){return getRole()==='ADMIN'}
-    function saveAuth(d){localStorage.setItem('c_token',d.token);localStorage.setItem('c_role',d.role);localStorage.setItem('c_email',d.email)}
-    function clearAuth(){['c_token','c_role','c_email'].forEach(k=>localStorage.removeItem(k))}
+    function saveAuth(d){
+        localStorage.setItem('c_token',d.token);localStorage.setItem('c_role',d.role);localStorage.setItem('c_email',d.email);
+        localStorage.setItem('cartify_token',d.token);localStorage.setItem('cartify_role',d.role);localStorage.setItem('cartify_email',d.email);
+    }
+    function clearAuth(){['c_token','c_role','c_email','cartify_token','cartify_role','cartify_email'].forEach(k=>localStorage.removeItem(k))}
     function authHeaders(){return{'Content-Type':'application/json','Authorization':'Bearer '+getToken()}}
     async function apiFetch(p,o={}){const r=await fetch(API+p,o);if(r.status===204)return null;const d=await r.json().catch(()=>null);if(!r.ok)throw new Error(d?.message||'Request failed');return d}
     function toast(msg,type='ok'){const c=document.getElementById('toasts');const t=document.createElement('div');t.className=`t t-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),3500)}

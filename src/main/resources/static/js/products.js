@@ -1,3 +1,7 @@
+function esc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!requireAuth()) return;
     updateNav();
@@ -8,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadProducts() {
     const container = document.getElementById('products-container');
     try {
-        const products = await apiFetch('/api/products', { headers: authHeaders() });
+        const res = await apiFetch('/api/products?size=50', { headers: authHeaders() });
+        const products = res.content || res;
         if (!products.length) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -19,7 +24,7 @@ async function loadProducts() {
         }
         container.innerHTML = `<div class="card-grid">${products.map(productCard).join('')}</div>`;
     } catch(e) {
-        container.innerHTML = `<div class="empty-state"><p>Failed to load products: ${e.message}</p></div>`;
+        container.innerHTML = `<div class="empty-state"><p>Failed to load products: ${esc(e.message)}</p></div>`;
     }
 }
 
@@ -32,14 +37,14 @@ function productCard(p) {
 
     const adminActions = isAdmin() ? `
         <div style="display:flex;gap:0.4rem;margin-top:0.75rem">
-            <button class="btn btn-outline btn-sm" onclick="editStock('${p.id}', ${p.stock})">Edit Stock</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Delete</button>
+            <button class="btn btn-outline btn-sm" onclick="editStock('${esc(p.id)}', ${p.stock})">Edit Stock</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteProduct('${esc(p.id)}')">Delete</button>
         </div>` : '';
 
     return `
-        <div class="card" id="card-${p.id}">
-            <div class="card-name">${p.name}</div>
-            <div class="card-desc">${p.description || 'No description'}</div>
+        <div class="card" id="card-${esc(p.id)}">
+            <div class="card-name">${esc(p.name)}</div>
+            <div class="card-desc">${esc(p.description || 'No description')}</div>
             <div class="card-footer">
                 <span class="price">$${parseFloat(p.price).toFixed(2)}</span>
                 ${stockBadge}

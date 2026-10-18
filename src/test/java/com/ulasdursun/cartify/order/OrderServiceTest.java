@@ -158,7 +158,8 @@ class OrderServiceTest {
     }
 
     @Test
-    void updateOrderStatus_toCancelled_restoresStockUsingPessimisticLock() {
+    void updateOrderStatus_toCancelled_restoresStockUsingPessimisticLockEvenIfProductSoftDeleted() {
+        product.setActive(false); // Simulate product soft-deleted after order was placed
         Order order = buildOrder(OrderStatus.PENDING, owner);
         OrderItem item = OrderItem.builder()
                 .id(UUID.randomUUID())
@@ -170,7 +171,7 @@ class OrderServiceTest {
         order.setItems(new ArrayList<>(List.of(item)));
 
         when(orderRepository.findDetailedById(order.getId())).thenReturn(Optional.of(order));
-        when(productService.findActiveOrThrowForUpdate(productId)).thenReturn(product);
+        when(productService.findOrThrowForUpdate(productId)).thenReturn(product);
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponse response = orderService.updateOrderStatus(
@@ -179,7 +180,25 @@ class OrderServiceTest {
 
         assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(product.getStock()).isEqualTo(INITIAL_STOCK + 3);
-        verify(productService).findActiveOrThrowForUpdate(productId);
+        verify(productService).findOrThrowForUpdate(productId);
+    }
+
+    @Test
+    void createOrder_withDuplicateProductIds_mergesQuantitiesIntoSingleItem() {
+        CreateOrderRequest request = new CreateOrderRequest(List.of(
+                new OrderItemRequest(productId, 2),
+                new OrderItemRequest(productId, 3)
+        ));
+
+        when(productService.findActiveOrThrowForUpdate(productId)).thenReturn(product);
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderResponse response = orderService.createOrder(request, owner);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).quantity()).isEqualTo(5);
+        assertThat(product.getStock()).isEqualTo(INITIAL_STOCK - 5);
+        verify(productService, times(1)).findActiveOrThrowForUpdate(productId);
     }
 
     @Test

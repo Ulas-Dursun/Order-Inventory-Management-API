@@ -2,6 +2,7 @@ package com.ulasdursun.cartify.product;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "products")
+@BatchSize(size = 25)
 @Getter
 @Setter
 @Builder
